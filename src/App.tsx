@@ -33,8 +33,12 @@ import {
   Camera as CameraIcon,
   Library,
   Trash2,
-  FileText
+  FileText,
+  MessageSquare,
+  Copy,
+  Check
 } from 'lucide-react';
+
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
@@ -43,18 +47,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { theme } from './theme';
 import { medEngine } from './lib/medEngine';
 
-type AppState = 'home' | 'encode_input' | 'decode_input' | 'success' | 'error';
+type AppState = 'home' | 'encode_input' | 'decode_input' | 'text_encode' | 'text_decode' | 'success' | 'error';
+
 
 function App() {
   const [state, setState] = useState<AppState>('home');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [secret, setSecret] = useState('');
   const [confirmSecret, setConfirmSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [resultImages, setResultImages] = useState<string[]>([]);
+  const [resultText, setResultText] = useState<string | null>(null);
+  const [inputText, setInputText] = useState('');
+  const [encodedValue, setEncodedValue] = useState('');
   const [libraryFiles, setLibraryFiles] = useState<string[]>([]);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [copied, setCopied] = useState(false);
+
 
   const loadLibrary = async () => {
     if (!Capacitor.isNativePlatform()) return;
@@ -88,7 +98,7 @@ function App() {
       // Convert base64 to File object
       const blob = await fetch(`data:application/pdf;base64,${res.data}`).then(r => r.blob());
       const selectedFile = new File([blob], fileName, { type: 'application/pdf' });
-      setFile(selectedFile);
+      setFiles([selectedFile]);
       setShowLibrary(false);
     } catch (err) {
       console.error('Library selection failed', err);
@@ -128,8 +138,8 @@ function App() {
         }
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: 'image/jpeg' });
-        const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        setFile(file);
+        const camFile = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        setFiles(prev => [...prev, camFile]);
       }
     } catch (err) {
       console.error('Camera failed', err);
@@ -137,16 +147,25 @@ function App() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      if (state === 'decode_input') {
+        setFiles([selectedFiles[0]]); // Decode only one PDF at a time
+      } else {
+        setFiles(prev => [...prev, ...selectedFiles]);
+      }
     }
   };
 
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleEncode = async () => {
-    if (!file || !secret) return;
+    if (files.length === 0 || !secret) return;
     setLoading(true);
     try {
-      const pdfBytes = await medEngine.encode(file, secret);
+      const pdfBytes = await medEngine.encode(files, secret);
       const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
@@ -215,12 +234,12 @@ function App() {
   };
 
   const handleDecode = async () => {
-    if (!file || !secret) return;
+    if (files.length === 0 || !secret) return;
     setLoading(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const base64 = await medEngine.decode(buffer, secret);
-      setResultImage(base64);
+      const buffer = await files[0].arrayBuffer();
+      const base64Array = await medEngine.decode(buffer, secret);
+      setResultImages(base64Array);
       setState('success');
     } catch (err: any) {
       setState('error');
@@ -229,13 +248,47 @@ function App() {
     }
   };
 
+  const handleTextEncode = () => {
+
+    if (!inputText || !secret) return;
+    try {
+      const encoded = medEngine.textEncode(inputText, secret);
+      setEncodedValue(encoded);
+      setState('success');
+    } catch (err) {
+      setState('error');
+    }
+  };
+
+  const handleTextDecode = () => {
+    if (!encodedValue || !secret) return;
+    try {
+      const decoded = medEngine.textDecode(encodedValue, secret);
+      setResultText(decoded);
+      setState('success');
+    } catch (err) {
+      setState('error');
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(encodedValue || resultText || '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+
   const reset = () => {
     setState('home');
-    setFile(null);
+    setFiles([]);
     setSecret('');
     setConfirmSecret('');
-    setResultImage(null);
+    setResultImages([]);
+    setResultText(null);
+    setInputText('');
+    setEncodedValue('');
   };
+
 
   return (
     <ThemeProvider theme={theme}>
@@ -306,6 +359,37 @@ function App() {
                       </Box>
                     </Stack>
                   </Card>
+
+                  <Card
+                    sx={{ p: 4, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                    onClick={() => setState('text_encode')}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={3}>
+                      <Box sx={{ p: 2, bgcolor: 'info.main', borderRadius: 3, color: 'background.default' }}>
+                        <MessageSquare size={32} />
+                      </Box>
+                      <Box>
+                        <Typography variant="h5">Chat Encoder</Typography>
+                        <Typography variant="body2" color="text.secondary">Securely encode text messages</Typography>
+                      </Box>
+                    </Stack>
+                  </Card>
+
+                  <Card
+                    sx={{ p: 4, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                    onClick={() => setState('text_decode')}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={3}>
+                      <Box sx={{ p: 2, bgcolor: 'warning.main', borderRadius: 3, color: 'background.default' }}>
+                        <MessageSquare size={32} />
+                      </Box>
+                      <Box>
+                        <Typography variant="h5">Chat Decoder</Typography>
+                        <Typography variant="body2" color="text.secondary">Decode secure text messages</Typography>
+                      </Box>
+                    </Stack>
+                  </Card>
+
                 </Stack>
               </motion.div>
             )}
@@ -333,6 +417,7 @@ function App() {
                   <Box sx={{ p: 4, border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 4, textAlign: 'center' }}>
                     <input
                       type="file"
+                      multiple
                       accept={state === 'encode_input' ? "image/*" : ".pdf"}
                       onChange={handleFileChange}
                       style={{ display: 'none' }}
@@ -340,20 +425,11 @@ function App() {
                     />
                     <label htmlFor="file-upload">
                       <Stack spacing={2} alignItems="center" sx={{ cursor: 'pointer' }}>
-                        {file ? (
-                          <>
-                            <Upload size={48} color="#D0BCFF" />
-                            <Typography variant="body1">{file.name}</Typography>
-                          </>
-                        ) : (
-                          <>
-                            <Upload size={48} color="rgba(255,255,255,0.3)" />
-                            <Typography variant="body1" color="text.secondary">
-                              {state === 'encode_input' ? 'Drop Image Here' : 'Drop Encoded PDF Here'}
-                            </Typography>
-                          </>
-                        )}
-                        <Button component="span" variant="outlined">{file ? 'Change File' : 'Select File'}</Button>
+                        <Upload size={48} color={files.length > 0 ? "#D0BCFF" : "rgba(255,255,255,0.3)"} />
+                        <Typography variant="body1" color={files.length > 0 ? "text.primary" : "text.secondary"}>
+                          {files.length > 0 ? `${files.length} File(s) selected` : (state === 'encode_input' ? 'Drop Image(s) Here' : 'Drop Encoded PDF Here')}
+                        </Typography>
+                        <Button component="span" variant="outlined">{files.length > 0 ? 'Add More Files' : 'Select File'}</Button>
                         {state === 'encode_input' && (
                           <Button
                             variant="contained"
@@ -364,8 +440,20 @@ function App() {
                               handleCamera();
                             }}
                           >
-                            Camera
+                            Add Camera Photo
                           </Button>
+                        )}
+                        {files.length > 0 && state === 'encode_input' && (
+                          <Stack direction="row" flexWrap="wrap" justifyContent="center" gap={1} sx={{ mt: 2 }}>
+                            {files.map((file, i) => (
+                              <Paper key={i} sx={{ px: 1, py: 0.5, display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.05)' }}>
+                                <Typography variant="caption">{file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}</Typography>
+                                <IconButton size="small" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeFile(i); }}>
+                                  <Trash2 size={14} color="#f44336" />
+                                </IconButton>
+                              </Paper>
+                            ))}
+                          </Stack>
                         )}
                         {state === 'decode_input' && Capacitor.isNativePlatform() && (
                           <Button
@@ -413,14 +501,96 @@ function App() {
                     variant="contained"
                     size="large"
                     fullWidth
-                    disabled={!file || !secret || (state === 'encode_input' && secret !== confirmSecret) || loading}
+                    disabled={files.length === 0 || !secret || (state === 'encode_input' && secret !== confirmSecret) || loading}
                     onClick={state === 'encode_input' ? handleEncode : handleDecode}
                   >
-                    {loading ? <CircularProgress size={24} /> : (state === 'encode_input' ? 'Generate PDF' : 'Decode Image')}
+                    {loading ? <CircularProgress size={24} /> : (state === 'encode_input' ? `Generate PDF (${files.length} Images)` : 'Decode Images')}
                   </Button>
                 </Stack>
               </motion.div>
             )}
+
+            {(state === 'text_encode' || state === 'text_decode') && (
+              <motion.div
+                key="text_input"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <Stack spacing={4}>
+                  <Button
+                    startIcon={<ArrowLeft size={18} />}
+                    onClick={reset}
+                    sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}
+                  >
+                    Back
+                  </Button>
+
+                  <Typography variant="h5">
+                    {state === 'text_encode' ? 'Chat Text Encoder' : 'Chat Text Decoder'}
+                  </Typography>
+
+                  {state === 'text_encode' ? (
+                    <TextField
+                      label="Message to Encode"
+                      variant="outlined"
+                      fullWidth
+                      multiline
+                      rows={4}
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      placeholder="Type your secret message here..."
+                    />
+                  ) : (
+                    <TextField
+                      label="Encoded Value"
+                      variant="outlined"
+                      fullWidth
+                      multiline
+                      rows={4}
+                      value={encodedValue}
+                      onChange={(e) => setEncodedValue(e.target.value)}
+                      placeholder="Paste the encoded text here..."
+                    />
+                  )}
+
+                  <TextField
+                    label="Secret Code"
+                    variant="filled"
+                    fullWidth
+                    type="password"
+                    value={secret}
+                    onChange={(e) => setSecret(e.target.value)}
+                    placeholder="Enter secret code..."
+                  />
+
+                  {state === 'text_encode' && (
+                    <TextField
+                      label="Confirm Secret Code"
+                      variant="filled"
+                      fullWidth
+                      type="password"
+                      error={secret !== '' && confirmSecret !== '' && secret !== confirmSecret}
+                      helperText={secret !== '' && confirmSecret !== '' && secret !== confirmSecret ? "Codes do not match" : ""}
+                      value={confirmSecret}
+                      onChange={(e) => setConfirmSecret(e.target.value)}
+                      placeholder="Re-enter secret code..."
+                    />
+                  )}
+
+                  <Button
+                    variant="contained"
+                    size="large"
+                    fullWidth
+                    disabled={(state === 'text_encode' ? !inputText : !encodedValue) || !secret || (state === 'text_encode' && secret !== confirmSecret) || loading}
+                    onClick={state === 'text_encode' ? handleTextEncode : handleTextDecode}
+                  >
+                    {state === 'text_encode' ? 'Encode Text' : 'Decode Text'}
+                  </Button>
+                </Stack>
+              </motion.div>
+            )}
+
 
             {state === 'success' && (
               <motion.div
@@ -429,10 +599,10 @@ function App() {
                 animate={{ opacity: 1, y: 0 }}
                 style={{ width: '100%' }}
               >
-                <Stack spacing={resultImage ? 2 : 4} alignItems="center" sx={{ textAlign: 'center', width: '100%' }}>
-                  {!resultImage && <CheckCircle size={80} color="#4CAF50" />}
+                <Stack spacing={(resultImages.length > 0 || resultText || encodedValue) ? 2 : 4} alignItems="center" sx={{ textAlign: 'center', width: '100%' }}>
+                  {!resultImages.length && !resultText && !encodedValue && <CheckCircle size={80} color="#4CAF50" />}
 
-                  {!resultImage && (
+                  {!resultImages.length && !resultText && !encodedValue && (
                     <Box>
                       <Typography variant="h5" gutterBottom>
                         Operation Successful!
@@ -443,7 +613,8 @@ function App() {
                     </Box>
                   )}
 
-                  {!resultImage && Capacitor.isNativePlatform() && (
+                  {!resultImages.length && !resultText && !encodedValue && Capacitor.isNativePlatform() && (
+
                     <Button
                       startIcon={<Share2 size={20} />}
                       variant="outlined"
@@ -454,31 +625,114 @@ function App() {
                     </Button>
                   )}
 
-                  {resultImage && (
-                    <Box sx={{ width: '100%', position: 'relative' }}>
+                  {resultImages.length > 0 && (
+                    <Stack spacing={2} sx={{ width: '100%' }}>
+                      <Typography variant="h6">Decoded {resultImages.length} Image(s)</Typography>
+                      <Box sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr',
+                        gap: 2,
+                        width: '100%',
+                        maxHeight: '60vh',
+                        overflow: 'auto',
+                        p: 1
+                      }}>
+                        {resultImages.map((img, idx) => (
+                          <Paper
+                            key={idx}
+                            elevation={0}
+                            sx={{
+                              overflow: 'hidden',
+                              borderRadius: 2,
+                              bgcolor: 'rgba(255,255,255,0.05)',
+                              p: 1,
+                              '& img': {
+                                width: '100%',
+                                height: 'auto',
+                                display: 'block',
+                                borderRadius: 1
+                              }
+                            }}
+                          >
+                            <img src={img} alt={`Decoded ${idx}`} />
+                          </Paper>
+                        ))}
+                      </Box>
+                    </Stack>
+                  )}
+
+                  {resultText && (
+                    <Box sx={{ width: '100%' }}>
                       <Paper
                         elevation={0}
                         sx={{
-                          overflow: 'hidden',
+                          p: 3,
                           borderRadius: 2,
-                          bgcolor: 'transparent',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          '& img': {
-                            width: '100%',
-                            height: 'auto',
-                            display: 'block',
-                            borderRadius: 2
-                          }
+                          bgcolor: 'rgba(255,255,255,0.05)',
+                          textAlign: 'left',
+                          position: 'relative',
+                          border: '1px solid rgba(255,255,255,0.1)'
                         }}
                       >
-                        <img src={resultImage} alt="Decoded Content" />
+                        <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>
+                          {resultText}
+                        </Typography>
+                        <Button
+                          size="small"
+                          startIcon={copied ? <Check size={16} /> : <Copy size={16} />}
+                          onClick={handleCopy}
+                          variant="outlined"
+                          sx={{ borderRadius: 2 }}
+                        >
+                          {copied ? 'Copied' : 'Copy Text'}
+                        </Button>
                       </Paper>
                     </Box>
                   )}
 
-                  <Button variant="contained" fullWidth sx={{ mt: resultImage ? 2 : 0 }} onClick={reset}>Done</Button>
+                  {encodedValue && state === 'success' && !resultText && resultImages.length === 0 && (
+                    <Box sx={{ width: '100%' }}>
+                      <Typography variant="h6" gutterBottom>Text Encoded!</Typography>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          borderRadius: 2,
+                          bgcolor: 'rgba(255,255,255,0.05)',
+                          textAlign: 'left',
+                          position: 'relative',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          mb: 2
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            wordBreak: 'break-all',
+                            fontFamily: 'monospace',
+                            color: 'text.secondary',
+                            mb: 2,
+                            maxHeight: '100px',
+                            overflow: 'auto'
+                          }}
+                        >
+                          {encodedValue}
+                        </Typography>
+                        <Button
+                          size="small"
+                          startIcon={copied ? <Check size={16} /> : <Copy size={16} />}
+                          onClick={handleCopy}
+                          variant="contained"
+                          sx={{ borderRadius: 2 }}
+                        >
+                          {copied ? 'Copied' : 'Copy Encoded Value'}
+                        </Button>
+                      </Paper>
+                    </Box>
+                  )}
+
+                  <Button variant="contained" fullWidth sx={{ mt: (resultImages.length > 0 || resultText || encodedValue) ? 2 : 0 }} onClick={reset}>Done</Button>
+
                 </Stack>
               </motion.div>
             )}

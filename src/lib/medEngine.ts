@@ -11,15 +11,17 @@ const MED_MARKER_END = '[[MED_DATA_END]]';
 
 export const medEngine = {
     /**
-     * Encodes an image to a PDF file
+     * Encodes multiple images to a single PDF file
      */
-    async encode(imageFile: File, secret: string): Promise<Uint8Array> {
-        // 1. Convert Image to Base64
-        const base64Data = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(imageFile);
-        });
+    async encode(imageFiles: File[], secret: string): Promise<Uint8Array> {
+        // 1. Convert all Images to Base64
+        const base64Array = await Promise.all(imageFiles.map(async (file) => {
+            return new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+            });
+        }));
 
         // 2. Create a high-quality PDF
         const pdfDoc = await PDFDocument.create();
@@ -42,24 +44,35 @@ export const medEngine = {
             size: 14,
         });
 
-        page.drawText('Status: ENCODED & READ-ONLY', {
+        page.drawText(`Contains ${imageFiles.length} secure image(s).`, {
             x: 50,
             y: height - 130,
             size: 12,
             color: rgb(0.1, 0.6, 0.1),
         });
 
-        page.drawText('To decode this image, open it in the MED Encoder App and enter the secret code.', {
+        page.drawText('Status: ENCODED & READ-ONLY', {
             x: 50,
-            y: height - 180,
+            y: height - 160,
+            size: 12,
+        });
+
+        page.drawText('To decode these images, open this in the MED Encoder App and enter the secret code.', {
+            x: 50,
+            y: height - 210,
             size: 10,
         });
 
         const pdfBytes = await pdfDoc.save();
 
-        // 3. Append metadata to the end of the PDF with clear newline separation
+        // 3. Append metadata to the end of the PDF
         const encoder = new TextEncoder();
-        const metadataString = `\n\n${MED_MARKER_START}${base64Data}${MED_MARKER_SECRET}${secret}${MED_MARKER_END}\n%%EOF`;
+        const metadata = {
+            images: base64Array,
+            secret: secret,
+            version: '2.0'
+        };
+        const metadataString = `\n\n${MED_MARKER_START}${JSON.stringify(metadata)}${MED_MARKER_END}\n%%EOF`;
         const metadataBytes = encoder.encode(metadataString);
 
         const finalPdf = new Uint8Array(pdfBytes.length + metadataBytes.length);
@@ -70,9 +83,9 @@ export const medEngine = {
     },
 
     /**
-     * Decodes an image from a PDF file
+     * Decodes images from a PDF file
      */
-    async decode(pdfBuffer: ArrayBuffer, providedSecret: string): Promise<string> {
+    async decode(pdfBuffer: ArrayBuffer, providedSecret: string): Promise<string[]> {
         const decoder = new TextDecoder();
         const content = decoder.decode(pdfBuffer);
 
@@ -81,12 +94,57 @@ export const medEngine = {
         }
 
         const dataPart = content.split(MED_MARKER_START)[1].split(MED_MARKER_END)[0];
-        const [base64Data, storedSecret] = dataPart.split(MED_MARKER_SECRET);
 
-        if (storedSecret !== providedSecret) {
-            throw new Error('Incorrect Secret Text. Access Denied.');
+        try {
+            // Try parsing as JSON (New Format)
+            const metadata = JSON.parse(dataPart);
+            if (metadata.secret !== providedSecret) {
+                throw new Error('Incorrect Secret Text. Access Denied.');
+            }
+            return metadata.images;
+        } catch (e: any) {
+            if (e.message === 'Incorrect Secret Text. Access Denied.') throw e;
+
+            // Fallback to Old Format
+            if (dataPart.includes(MED_MARKER_SECRET)) {
+                const [base64Data, storedSecret] = dataPart.split(MED_MARKER_SECRET);
+                if (storedSecret !== providedSecret) {
+                    throw new Error('Incorrect Secret Text. Access Denied.');
+                }
+                return [base64Data];
+            }
+            throw new Error('Failed to parse MED data.');
         }
+    },
 
-        return base64Data;
+    /**
+     * Encodes plain text using a secret key
+     */
+    textEncode(text: string, secret: string): string {
+        const combined = JSON.stringify({ t: text, s: secret });
+        // Simple obfuscation so it's not immediately readable
+        const encoded = btoa(unescape(encodeURIComponent(combined)));
+        return `MED_TEXT_${encoded}`;
+    },
+
+    /**
+     * Decodes obfuscated text using a secret key
+     */
+    textDecode(encodedValue: string, providedSecret: string): string {
+        if (!encodedValue.startsWith('MED_TEXT_')) {
+            throw new Error('Invalid encoded text format.');
+        }
+        const encoded = encodedValue.replace('MED_TEXT_', '');
+        try {
+            const decoded = decodeURIComponent(escape(atob(encoded)));
+            const data = JSON.parse(decoded);
+            if (data.s !== providedSecret) {
+                throw new Error('Incorrect Secret Code.');
+            }
+            return data.t;
+        } catch (e) {
+            throw new Error('Failed to decode. Data may be corrupted.');
+        }
     }
 };
+

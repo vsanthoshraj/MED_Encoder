@@ -23,7 +23,6 @@ import {
   Divider
 } from '@mui/material';
 import {
-  Lock,
   Unlock,
   ArrowLeft,
   Upload,
@@ -57,13 +56,15 @@ function App() {
   const [confirmSecret, setConfirmSecret] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [resultImages, setResultImages] = useState<string[]>([]);
+  const [resultFiles, setResultFiles] = useState<any[]>([]);
   const [resultText, setResultText] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [encodedValue, setEncodedValue] = useState('');
   const [libraryFiles, setLibraryFiles] = useState<string[]>([]);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [customFileName, setCustomFileName] = useState('');
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<'image' | 'file' | 'text'>('image');
 
 
   const loadLibrary = async () => {
@@ -75,8 +76,8 @@ function App() {
       });
       const pdfs = result.files
         .map(f => f.name)
-        .filter(name => name.endsWith('.pdf') && name.includes('MED_Encoded'))
-        .sort((a, b) => b.localeCompare(a)); // Newest first (by timestamp in name)
+        .filter(name => name.endsWith('.pdf'))
+        .sort((a, b) => b.localeCompare(a));
       setLibraryFiles(pdfs);
     } catch (err) {
       console.error('Failed to read library', err);
@@ -169,7 +170,9 @@ function App() {
       const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      const finalName = `MED_Encoded_${Date.now()}.pdf`;
+
+      const namePrefix = customFileName.trim() || 'Secure_Archive';
+      const finalName = `${namePrefix}_${Date.now()}.pdf`;
 
       if (Capacitor.isNativePlatform()) {
         // Mobile Implementation: Save to local Filesystem
@@ -238,8 +241,8 @@ function App() {
     setLoading(true);
     try {
       const buffer = await files[0].arrayBuffer();
-      const base64Array = await medEngine.decode(buffer, secret);
-      setResultImages(base64Array);
+      const decodedFiles = await medEngine.decode(buffer, secret);
+      setResultFiles(decodedFiles);
       setState('success');
     } catch (err: any) {
       setState('error');
@@ -283,10 +286,11 @@ function App() {
     setFiles([]);
     setSecret('');
     setConfirmSecret('');
-    setResultImages([]);
+    setResultFiles([]);
     setResultText(null);
     setInputText('');
     setEncodedValue('');
+    setCustomFileName('');
   };
 
 
@@ -313,10 +317,10 @@ function App() {
               animate={{ opacity: 1, y: 0 }}
             >
               <Typography variant="h4" component="h1" sx={{ fontWeight: 800, letterSpacing: -1, mb: 1 }}>
-                MED ENCODER
+                MY ENCODER DECODER
               </Typography>
               <Typography variant="body1" color="text.secondary">
-                Secure Offline Image Archiving
+                Secure Offline Multi-File Archiving
               </Typography>
             </motion.div>
           </Box>
@@ -329,67 +333,111 @@ function App() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <Stack spacing={3}>
-                  <Card
-                    sx={{ p: 4, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
-                    onClick={() => setState('encode_input')}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={3}>
-                      <Box sx={{ p: 2, bgcolor: 'primary.main', borderRadius: 3, color: 'background.default' }}>
-                        <Lock size={32} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h5">Encode Image</Typography>
-                        <Typography variant="body2" color="text.secondary">Convert image to secure PDF</Typography>
-                      </Box>
+                <Stack spacing={4}>
+                  {/* Image Section */}
+                  <Box>
+                    <Typography variant="overline" color="primary" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Image Security</Typography>
+                    <Stack spacing={2}>
+                      <Card
+                        sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                        onClick={() => { setMode('image'); setState('encode_input'); }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={3}>
+                          <Box sx={{ p: 1.5, bgcolor: 'primary.main', borderRadius: 2, color: 'background.default' }}>
+                            <CameraIcon size={24} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6">Encode Image</Typography>
+                            <Typography variant="body2" color="text.secondary">Secure photos and images</Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
+                      <Card
+                        sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                        onClick={() => { setMode('image'); setState('decode_input'); }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={3}>
+                          <Box sx={{ p: 1.5, bgcolor: 'secondary.main', borderRadius: 2, color: 'background.default' }}>
+                            <Unlock size={24} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6">Decode Image</Typography>
+                            <Typography variant="body2" color="text.secondary">Extract photos from secure PDF</Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
                     </Stack>
-                  </Card>
+                  </Box>
 
-                  <Card
-                    sx={{ p: 4, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
-                    onClick={() => setState('decode_input')}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={3}>
-                      <Box sx={{ p: 2, bgcolor: 'secondary.main', borderRadius: 3, color: 'background.default' }}>
-                        <Unlock size={32} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h5">Decode PDF</Typography>
-                        <Typography variant="body2" color="text.secondary">Extract image from MED PDF</Typography>
-                      </Box>
+                  {/* File Section */}
+                  <Box>
+                    <Typography variant="overline" color="info.main" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>File Security</Typography>
+                    <Stack spacing={2}>
+                      <Card
+                        sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                        onClick={() => { setMode('file'); setState('encode_input'); }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={3}>
+                          <Box sx={{ p: 1.5, bgcolor: 'info.main', borderRadius: 2, color: 'background.default' }}>
+                            <FileText size={24} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6">Encode Files</Typography>
+                            <Typography variant="body2" color="text.secondary">Secure PDFs, Docs, and others</Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
+                      <Card
+                        sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                        onClick={() => { setMode('file'); setState('decode_input'); }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={3}>
+                          <Box sx={{ p: 1.5, bgcolor: 'secondary.main', borderRadius: 2, color: 'background.default' }}>
+                            <Unlock size={24} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6">Decode Files</Typography>
+                            <Typography variant="body2" color="text.secondary">Extract any document from PDF</Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
                     </Stack>
-                  </Card>
+                  </Box>
 
-                  <Card
-                    sx={{ p: 4, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
-                    onClick={() => setState('text_encode')}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={3}>
-                      <Box sx={{ p: 2, bgcolor: 'info.main', borderRadius: 3, color: 'background.default' }}>
-                        <MessageSquare size={32} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h5">Chat Encoder</Typography>
-                        <Typography variant="body2" color="text.secondary">Securely encode text messages</Typography>
-                      </Box>
+                  {/* Text Section */}
+                  <Box>
+                    <Typography variant="overline" color="warning.main" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Text Security</Typography>
+                    <Stack spacing={2}>
+                      <Card
+                        sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                        onClick={() => setState('text_encode')}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={3}>
+                          <Box sx={{ p: 1.5, bgcolor: 'warning.main', borderRadius: 2, color: 'background.default' }}>
+                            <MessageSquare size={24} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6">Text Encoder</Typography>
+                            <Typography variant="body2" color="text.secondary">Securely encode text messages</Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
+                      <Card
+                        sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
+                        onClick={() => setState('text_decode')}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={3}>
+                          <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, color: 'text.primary', border: '1px solid rgba(255,255,255,0.2)' }}>
+                            <MessageSquare size={24} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6">Text Decoder</Typography>
+                            <Typography variant="body2" color="text.secondary">Decode secure text messages</Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
                     </Stack>
-                  </Card>
-
-                  <Card
-                    sx={{ p: 4, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }}
-                    onClick={() => setState('text_decode')}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={3}>
-                      <Box sx={{ p: 2, bgcolor: 'warning.main', borderRadius: 3, color: 'background.default' }}>
-                        <MessageSquare size={32} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h5">Chat Decoder</Typography>
-                        <Typography variant="body2" color="text.secondary">Decode secure text messages</Typography>
-                      </Box>
-                    </Stack>
-                  </Card>
-
+                  </Box>
                 </Stack>
               </motion.div>
             )}
@@ -411,14 +459,14 @@ function App() {
                   </Button>
 
                   <Typography variant="h5">
-                    {state === 'encode_input' ? 'Encode New Image' : 'Decode MED PDF'}
+                    {state === 'encode_input' ? (mode === 'image' ? 'Encode Image' : 'Encode Files') : (mode === 'image' ? 'Decode Image' : 'Decode Files')}
                   </Typography>
 
                   <Box sx={{ p: 4, border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 4, textAlign: 'center' }}>
                     <input
                       type="file"
                       multiple
-                      accept={state === 'encode_input' ? "image/*" : ".pdf"}
+                      accept={state === 'decode_input' ? ".pdf" : (mode === 'image' ? "image/*" : "*/*")}
                       onChange={handleFileChange}
                       style={{ display: 'none' }}
                       id="file-upload"
@@ -427,10 +475,10 @@ function App() {
                       <Stack spacing={2} alignItems="center" sx={{ cursor: 'pointer' }}>
                         <Upload size={48} color={files.length > 0 ? "#D0BCFF" : "rgba(255,255,255,0.3)"} />
                         <Typography variant="body1" color={files.length > 0 ? "text.primary" : "text.secondary"}>
-                          {files.length > 0 ? `${files.length} File(s) selected` : (state === 'encode_input' ? 'Drop Image(s) Here' : 'Drop Encoded PDF Here')}
+                          {files.length > 0 ? `${files.length} File(s) selected` : (state === 'encode_input' ? `Drop ${mode === 'image' ? 'Images' : 'Any File(s)'} Here` : 'Drop Encoded PDF Here')}
                         </Typography>
                         <Button component="span" variant="outlined">{files.length > 0 ? 'Add More Files' : 'Select File'}</Button>
-                        {state === 'encode_input' && (
+                        {state === 'encode_input' && mode === 'image' && (
                           <Button
                             variant="contained"
                             startIcon={<CameraIcon size={20} />}
@@ -466,7 +514,7 @@ function App() {
                               handleOpenLibrary();
                             }}
                           >
-                            MED Library
+                            Files Library
                           </Button>
                         )}
                       </Stack>
@@ -497,6 +545,19 @@ function App() {
                     />
                   )}
 
+                  {state === 'encode_input' && (
+                    <TextField
+                      label="PDF Filename (Optional)"
+                      variant="outlined"
+                      fullWidth
+                      value={customFileName}
+                      onChange={(e) => setCustomFileName(e.target.value)}
+                      placeholder="e.g. docs1"
+                      helperText="If empty, a default name will be used"
+                      sx={{ mt: 1 }}
+                    />
+                  )}
+
                   <Button
                     variant="contained"
                     size="large"
@@ -504,7 +565,7 @@ function App() {
                     disabled={files.length === 0 || !secret || (state === 'encode_input' && secret !== confirmSecret) || loading}
                     onClick={state === 'encode_input' ? handleEncode : handleDecode}
                   >
-                    {loading ? <CircularProgress size={24} /> : (state === 'encode_input' ? `Generate PDF (${files.length} Images)` : 'Decode Images')}
+                    {loading ? <CircularProgress size={24} /> : (state === 'encode_input' ? `Generate PDF (${files.length} ${mode === 'image' ? 'Images' : 'Files'})` : `Decode ${mode === 'image' ? 'Images' : 'Files'}`)}
                   </Button>
                 </Stack>
               </motion.div>
@@ -599,10 +660,10 @@ function App() {
                 animate={{ opacity: 1, y: 0 }}
                 style={{ width: '100%' }}
               >
-                <Stack spacing={(resultImages.length > 0 || resultText || encodedValue) ? 2 : 4} alignItems="center" sx={{ textAlign: 'center', width: '100%' }}>
-                  {!resultImages.length && !resultText && !encodedValue && <CheckCircle size={80} color="#4CAF50" />}
+                <Stack spacing={(resultFiles.length > 0 || resultText || encodedValue) ? 2 : 4} alignItems="center" sx={{ textAlign: 'center', width: '100%' }}>
+                  {!resultFiles.length && !resultText && !encodedValue && <CheckCircle size={80} color="#4CAF50" />}
 
-                  {!resultImages.length && !resultText && !encodedValue && (
+                  {!resultFiles.length && !resultText && !encodedValue && (
                     <Box>
                       <Typography variant="h5" gutterBottom>
                         Operation Successful!
@@ -613,7 +674,7 @@ function App() {
                     </Box>
                   )}
 
-                  {!resultImages.length && !resultText && !encodedValue && Capacitor.isNativePlatform() && (
+                  {!resultFiles.length && !resultText && !encodedValue && Capacitor.isNativePlatform() && (
 
                     <Button
                       startIcon={<Share2 size={20} />}
@@ -625,9 +686,9 @@ function App() {
                     </Button>
                   )}
 
-                  {resultImages.length > 0 && (
+                  {resultFiles.length > 0 && (
                     <Stack spacing={2} sx={{ width: '100%' }}>
-                      <Typography variant="h6">Decoded {resultImages.length} Image(s)</Typography>
+                      <Typography variant="h6">Decoded {resultFiles.length} File(s)</Typography>
                       <Box sx={{
                         display: 'grid',
                         gridTemplateColumns: '1fr',
@@ -637,7 +698,7 @@ function App() {
                         overflow: 'auto',
                         p: 1
                       }}>
-                        {resultImages.map((img, idx) => (
+                        {resultFiles.map((file, idx) => (
                           <Paper
                             key={idx}
                             elevation={0}
@@ -645,16 +706,44 @@ function App() {
                               overflow: 'hidden',
                               borderRadius: 2,
                               bgcolor: 'rgba(255,255,255,0.05)',
-                              p: 1,
-                              '& img': {
-                                width: '100%',
-                                height: 'auto',
-                                display: 'block',
-                                borderRadius: 1
-                              }
+                              p: 2,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2
                             }}
                           >
-                            <img src={img} alt={`Decoded ${idx}`} />
+                            <Stack direction="row" alignItems="center" spacing={2} justifyContent="space-between">
+                              <Stack direction="row" alignItems="center" spacing={2}>
+                                <Box sx={{ p: 1, bgcolor: 'rgba(208, 188, 255, 0.1)', borderRadius: 2 }}>
+                                  <FileText size={24} color="#D0BCFF" />
+                                </Box>
+                                <Box sx={{ textAlign: 'left' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-all' }}>
+                                    {file.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {file.type || 'Unknown Type'}
+                                  </Typography>
+                                </Box>
+                              </Stack>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => {
+                                  const a = document.createElement('a');
+                                  a.href = file.data;
+                                  a.download = file.name;
+                                  a.click();
+                                }}
+                              >
+                                Download
+                              </Button>
+                            </Stack>
+                            {file.type.startsWith('image/') && (
+                              <Box sx={{ mt: 1, borderRadius: 1, overflow: 'hidden' }}>
+                                <img src={file.data} alt={file.name} style={{ width: '100%', display: 'block' }} />
+                              </Box>
+                            )}
                           </Paper>
                         ))}
                       </Box>
@@ -690,7 +779,7 @@ function App() {
                     </Box>
                   )}
 
-                  {encodedValue && state === 'success' && !resultText && resultImages.length === 0 && (
+                  {encodedValue && state === 'success' && !resultText && resultFiles.length === 0 && (
                     <Box sx={{ width: '100%' }}>
                       <Typography variant="h6" gutterBottom>Text Encoded!</Typography>
                       <Paper
@@ -731,7 +820,7 @@ function App() {
                     </Box>
                   )}
 
-                  <Button variant="contained" fullWidth sx={{ mt: (resultImages.length > 0 || resultText || encodedValue) ? 2 : 0 }} onClick={reset}>Done</Button>
+                  <Button variant="contained" fullWidth sx={{ mt: (resultFiles.length > 0 || resultText || encodedValue) ? 2 : 0 }} onClick={reset}>Done</Button>
 
                 </Stack>
               </motion.div>
@@ -764,7 +853,7 @@ function App() {
           }}
         >
           <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Library size={24} /> MED Library
+            <Library size={24} /> Files Library
           </DialogTitle>
           <DialogContent dividers sx={{ p: 0 }}>
             {libraryFiles.length === 0 ? (
@@ -788,8 +877,8 @@ function App() {
                           <FileText color="#D0BCFF" />
                         </ListItemIcon>
                         <ListItemText
-                          primary={fileName.replace('MED_Encoded_', '').replace('.pdf', '')}
-                          secondary="MED PDF Document"
+                          primary={fileName.replace('.pdf', '')}
+                          secondary="Secure PDF Document"
                           primaryTypographyProps={{ variant: 'body2', sx: { fontWeight: 500 } }}
                         />
                       </ListItemButton>

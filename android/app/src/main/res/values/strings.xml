@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">MED Encoder</string>
-    <string name="title_activity_main">MED Encoder</string>
+    <string name="app_name">MED Secure Vault</string>
+    <string name="title_activity_main">MED Secure Vault</string>
     <string name="package_name">com.med.encoder</string>
     <string name="custom_url_scheme">com.med.encoder</string>
 </resources>

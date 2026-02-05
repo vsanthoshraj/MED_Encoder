@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.4.5",
+    "@capacitor/app": "^7.1.1",
     "@capacitor/camera": "^7.0.3",
     "@capacitor/cli": "^7.4.5",
     "@capacitor/core": "^7.4.5",
     "@capacitor/device": "^7.0.3",
     "@capacitor/filesystem": "^7.1.6",
+    "@capacitor/preferences": "^7.0.3",
     "@capacitor/share": "^7.0.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

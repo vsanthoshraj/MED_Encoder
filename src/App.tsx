@@ -42,7 +42,10 @@ import {
   EyeOff,
   X,
   Folder,
-  Shield
+  Shield,
+  Plus,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -78,6 +81,11 @@ function App() {
   const [vaultPath, setVaultPath] = useState(localStorage.getItem('med_vault_path') || 'MED/Encrypted');
   const [appPasscode, setAppPasscode] = useState(localStorage.getItem('med_app_passcode') || '');
   const [enteredPin, setEnteredPin] = useState('');
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const [pickerPath, setPickerPath] = useState('');
+  const [currentFolderItems, setCurrentFolderItems] = useState<{ name: string; type: 'file' | 'directory' }[]>([]);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const clipboardTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
@@ -148,6 +156,75 @@ function App() {
   const updateVaultPath = (newPath: string) => {
     setVaultPath(newPath);
     localStorage.setItem('med_vault_path', newPath);
+  };
+
+  const openFolderPicker = async () => {
+    setPickerPath(vaultPath);
+    await loadPickerFolders(vaultPath);
+    setFolderPickerOpen(true);
+  };
+
+  const loadPickerFolders = async (path: string) => {
+    if (!Capacitor.isNativePlatform()) {
+      alert("Folder selection is only available on native platforms.");
+      return;
+    }
+    try {
+      const result = await Filesystem.readdir({
+        path: path,
+        directory: Directory.Documents
+      });
+      setCurrentFolderItems(result.files.map(f => ({ name: f.name, type: f.type as 'file' | 'directory' })));
+      setPickerPath(path);
+    } catch (err) {
+      console.error("Failed to load folders", err);
+      // Fallback to root if path fails
+      try {
+        const result = await Filesystem.readdir({
+          path: '',
+          directory: Directory.Documents
+        });
+        setCurrentFolderItems(result.files.map(f => ({ name: f.name, type: f.type as 'file' | 'directory' })));
+        setPickerPath('');
+      } catch (innerErr) {
+        console.error("Failed to load root folders", innerErr);
+      }
+    }
+  };
+
+  const handleEnterFolder = (name: string) => {
+    const newPath = pickerPath === '' ? name : `${pickerPath}/${name}`;
+    loadPickerFolders(newPath);
+  };
+
+  const handleGoUp = () => {
+    if (pickerPath === '') return;
+    const parts = pickerPath.split('/');
+    parts.pop();
+    const newPath = parts.join('/');
+    loadPickerFolders(newPath);
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    try {
+      const path = pickerPath === '' ? newFolderName.trim() : `${pickerPath}/${newFolderName.trim()}`;
+      await Filesystem.mkdir({
+        path: path,
+        directory: Directory.Documents,
+        recursive: true
+      });
+      setNewFolderName('');
+      setShowNewFolderInput(false);
+      loadPickerFolders(pickerPath);
+    } catch (err) {
+      console.error("Failed to create folder", err);
+    }
+  };
+
+  const handleSelectFolder = () => {
+    updateVaultPath(pickerPath);
+    setFolderPickerOpen(false);
   };
 
 
@@ -373,7 +450,7 @@ function App() {
                 {state === 'about' ? <ArrowLeft size={24} /> : <Settings size={24} />}
               </IconButton>
               <Typography variant="h4" component="h1" sx={{ fontWeight: 800, letterSpacing: -1, mb: 1, color: 'primary.main' }}>
-                MED SECURE VAULT
+                PRIVATE VAULT
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
                 <Shield size={16} color="#4CAF50" />
@@ -413,52 +490,52 @@ function App() {
               <motion.div key="home" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
                 <Stack spacing={4}>
                   <Box>
-                    <Typography variant="overline" color="primary" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Image Security</Typography>
+                    <Typography variant="overline" color="primary" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Photo Protection</Typography>
                     <Stack spacing={2}>
                       <Card sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }} onClick={() => { setMode('image'); setState('encode_input'); }}>
                         <Stack direction="row" alignItems="center" spacing={3}>
                           <Box sx={{ p: 1.5, bgcolor: 'primary.main', borderRadius: 2, color: 'background.default' }}><CameraIcon size={24} /></Box>
-                          <Box><Typography variant="h6">Encode Image</Typography><Typography variant="body2" color="text.secondary">Secure photos and images</Typography></Box>
+                          <Box><Typography variant="h6">Lock Photos</Typography><Typography variant="body2" color="text.secondary">Seal your images into a secure PDF</Typography></Box>
                         </Stack>
                       </Card>
                       <Card sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }} onClick={() => { setMode('image'); setState('decode_input'); }}>
                         <Stack direction="row" alignItems="center" spacing={3}>
                           <Box sx={{ p: 1.5, bgcolor: 'secondary.main', borderRadius: 2, color: 'background.default' }}><Unlock size={24} /></Box>
-                          <Box><Typography variant="h6">Decode Image</Typography><Typography variant="body2" color="text.secondary">Extract photos from secure PDF</Typography></Box>
+                          <Box><Typography variant="h6">Unlock Photos</Typography><Typography variant="body2" color="text.secondary">Extract images from your vault</Typography></Box>
                         </Stack>
                       </Card>
                     </Stack>
                   </Box>
                   <Box>
-                    <Typography variant="overline" color="info.main" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>File Security</Typography>
+                    <Typography variant="overline" color="info.main" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Document Security</Typography>
                     <Stack spacing={2}>
                       <Card sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }} onClick={() => { setMode('file'); setState('encode_input'); }}>
                         <Stack direction="row" alignItems="center" spacing={3}>
                           <Box sx={{ p: 1.5, bgcolor: 'info.main', borderRadius: 2, color: 'background.default' }}><FileText size={24} /></Box>
-                          <Box><Typography variant="h6">Encode Files</Typography><Typography variant="body2" color="text.secondary">Secure PDFs, Docs, and others</Typography></Box>
+                          <Box><Typography variant="h6">Lock Files</Typography><Typography variant="body2" color="text.secondary">Seal any document or file</Typography></Box>
                         </Stack>
                       </Card>
                       <Card sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }} onClick={() => { setMode('file'); setState('decode_input'); }}>
                         <Stack direction="row" alignItems="center" spacing={3}>
                           <Box sx={{ p: 1.5, bgcolor: 'secondary.main', borderRadius: 2, color: 'background.default' }}><Unlock size={24} /></Box>
-                          <Box><Typography variant="h6">Decode Files</Typography><Typography variant="body2" color="text.secondary">Extract any document from PDF</Typography></Box>
+                          <Box><Typography variant="h6">Unlock Files</Typography><Typography variant="body2" color="text.secondary">Restore files from your container</Typography></Box>
                         </Stack>
                       </Card>
                     </Stack>
                   </Box>
                   <Box>
-                    <Typography variant="overline" color="warning.main" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Text Security</Typography>
+                    <Typography variant="overline" color="warning.main" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>Secret Messages</Typography>
                     <Stack spacing={2}>
                       <Card sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }} onClick={() => setState('text_encode')}>
                         <Stack direction="row" alignItems="center" spacing={3}>
                           <Box sx={{ p: 1.5, bgcolor: 'warning.main', borderRadius: 2, color: 'background.default' }}><MessageSquare size={24} /></Box>
-                          <Box><Typography variant="h6">Text Encoder</Typography><Typography variant="body2" color="text.secondary">Securely encode text messages</Typography></Box>
+                          <Box><Typography variant="h6">Hide Message</Typography><Typography variant="body2" color="text.secondary">Convert sensitive text into code</Typography></Box>
                         </Stack>
                       </Card>
                       <Card sx={{ p: 3, cursor: 'pointer', transition: '0.3s', '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', transform: 'translateY(-4px)' } }} onClick={() => setState('text_decode')}>
                         <Stack direction="row" alignItems="center" spacing={3}>
                           <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, color: 'text.primary', border: '1px solid rgba(255,255,255,0.2)' }}><MessageSquare size={24} /></Box>
-                          <Box><Typography variant="h6">Text Decoder</Typography><Typography variant="body2" color="text.secondary">Decode secure text messages</Typography></Box>
+                          <Box><Typography variant="h6">Reveal Message</Typography><Typography variant="body2" color="text.secondary">Unlock hidden text from code</Typography></Box>
                         </Stack>
                       </Card>
                     </Stack>
@@ -471,7 +548,7 @@ function App() {
               <motion.div key="input" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <Stack spacing={4}>
                   <Button startIcon={<ArrowLeft size={18} />} onClick={reset} sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}>Back</Button>
-                  <Typography variant="h5">{state === 'encode_input' ? (mode === 'image' ? 'Encode Image' : 'Encode Files') : (mode === 'image' ? 'Decode Image' : 'Decode Files')}</Typography>
+                  <Typography variant="h5">{state === 'encode_input' ? (mode === 'image' ? 'Secure Your Photos' : 'Secure Your Documents') : (mode === 'image' ? 'Unlock Photo Vault' : 'Unlock Document Vault')}</Typography>
                   <Box sx={{ p: 4, border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 4, textAlign: 'center' }}>
                     <input type="file" multiple accept={state === 'decode_input' ? ".pdf" : (mode === 'image' ? "image/*" : "*/*")} onChange={handleFileChange} style={{ display: 'none' }} id="file-upload" />
                     <label htmlFor="file-upload">
@@ -495,11 +572,11 @@ function App() {
                     </label>
                   </Box>
                   <Stack spacing={2}>
-                    {state === 'encode_input' && <TextField fullWidth label="Custom File Name" variant="filled" value={customFileName} onChange={e => setCustomFileName(e.target.value)} />}
-                    <TextField fullWidth label="Security Code" type={showPassword ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} InputProps={{ endAdornment: <IconButton onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</IconButton> }} />
-                    {state === 'encode_input' && <TextField fullWidth label="Confirm Code" type="password" value={confirmSecret} onChange={e => setConfirmSecret(e.target.value)} error={secret !== '' && confirmSecret !== '' && secret !== confirmSecret} />}
+                    {state === 'encode_input' && <TextField fullWidth label="Vault File Name" variant="filled" value={customFileName} onChange={e => setCustomFileName(e.target.value)} placeholder="e.g. Secret_Trip" />}
+                    <TextField fullWidth label="Passphrase" type={showPassword ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} InputProps={{ endAdornment: <IconButton onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</IconButton> }} />
+                    {state === 'encode_input' && <TextField fullWidth label="Confirm Passphrase" type="password" value={confirmSecret} onChange={e => setConfirmSecret(e.target.value)} error={secret !== '' && confirmSecret !== '' && secret !== confirmSecret} />}
                   </Stack>
-                  <Button variant="contained" size="large" fullWidth disabled={files.length === 0 || !secret || (state === 'encode_input' && secret !== confirmSecret) || loading} onClick={state === 'encode_input' ? handleEncode : handleDecode}>{loading ? <CircularProgress size={24} color="inherit" /> : 'Process'}</Button>
+                  <Button variant="contained" size="large" fullWidth disabled={files.length === 0 || !secret || (state === 'encode_input' && secret !== confirmSecret) || loading} onClick={state === 'encode_input' ? handleEncode : handleDecode}>{loading ? <CircularProgress size={24} color="inherit" /> : (state === 'encode_input' ? 'Secure Files' : 'Unlock Vault')}</Button>
                 </Stack>
               </motion.div>
             )}
@@ -507,11 +584,13 @@ function App() {
             {(state === 'text_encode' || state === 'text_decode') && (
               <motion.div key="text" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <IconButton onClick={reset} sx={{ mb: 2 }}><ArrowLeft /></IconButton>
-                <Typography variant="h4" sx={{ mb: 1 }}>{state === 'text_encode' ? 'Text Lock' : 'Text Unlock'}</Typography>
+                <Typography variant="h4" sx={{ mb: 1 }}>{state === 'text_encode' ? 'Lock Message' : 'Unlock Message'}</Typography>
                 <Stack spacing={3}>
-                  <TextField multiline rows={4} fullWidth label={state === 'text_encode' ? "Secret Message" : "Encrypted Value"} value={state === 'text_encode' ? inputText : encodedValue} onChange={e => state === 'text_encode' ? setInputText(e.target.value) : setEncodedValue(e.target.value)} />
-                  <TextField fullWidth label="Security Code" type="password" value={secret} onChange={e => setSecret(e.target.value)} />
-                  <Button variant="contained" size="large" fullWidth onClick={state === 'text_encode' ? handleTextEncode : handleTextDecode} disabled={(!inputText && !encodedValue) || !secret}>Process Text</Button>
+                  <TextField multiline rows={4} fullWidth label={state === 'text_encode' ? "Write your secret message..." : "Paste the encrypted code here..."} value={state === 'text_encode' ? inputText : encodedValue} onChange={e => state === 'text_encode' ? setInputText(e.target.value) : setEncodedValue(e.target.value)} />
+                  <TextField fullWidth label="Passphrase" type="password" value={secret} onChange={e => setSecret(e.target.value)} />
+                  <Button variant="contained" size="large" fullWidth onClick={state === 'text_encode' ? handleTextEncode : handleTextDecode} disabled={(!inputText && !encodedValue) || !secret}>
+                    {state === 'text_encode' ? 'Generate Secret Code' : 'Reveal Message'}
+                  </Button>
                 </Stack>
               </motion.div>
             )}
@@ -564,7 +643,23 @@ function App() {
                   </Box>
                   <Box>
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Storage Settings</Typography>
-                    <TextField label="Vault Folder Path" fullWidth variant="filled" value={vaultPath} onChange={(e) => updateVaultPath(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><Folder size={18} /></InputAdornment> }} />
+                    <TextField
+                      label="Vault Folder Path"
+                      fullWidth
+                      variant="filled"
+                      value={vaultPath}
+                      onChange={(e) => updateVaultPath(e.target.value)}
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start"><Folder size={18} /></InputAdornment>,
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={openFolderPicker} color="primary">
+                              <Library size={18} />
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }}
+                    />
                   </Box>
                   <Box>
                     <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>About</Typography>
@@ -617,6 +712,63 @@ function App() {
             )}
           </DialogContent>
           <Box sx={{ p: 2 }}><Button fullWidth onClick={() => setShowLibrary(false)}>Cancel</Button></Box>
+        </Dialog>
+
+        <Dialog open={folderPickerOpen} onClose={() => setFolderPickerOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 4, bgcolor: 'background.paper' } }}>
+          <DialogTitle sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Folder size={24} /> Select Folder
+            </Box>
+            <IconButton onClick={() => setShowNewFolderInput(!showNewFolderInput)} color="primary">
+              <Plus size={20} />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers sx={{ p: 0 }}>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton size="small" onClick={handleGoUp} disabled={pickerPath === ''}>
+                <ChevronLeft size={18} />
+              </IconButton>
+              <Typography variant="caption" sx={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Documents/{pickerPath || 'Root'}
+              </Typography>
+            </Box>
+
+            {showNewFolderInput && (
+              <Box sx={{ p: 2, display: 'flex', gap: 1 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="New folder name"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleCreateFolder()}
+                />
+                <Button variant="contained" onClick={handleCreateFolder}>Add</Button>
+              </Box>
+            )}
+
+            <List sx={{ pt: 0, maxHeight: '40vh', overflow: 'auto' }}>
+              {currentFolderItems.filter(i => i.type === 'directory').length === 0 ? (
+                <Box sx={{ p: 4, textAlign: 'center', opacity: 0.6 }}>
+                  <Typography variant="body2">No subfolders found.</Typography>
+                </Box>
+              ) : (
+                currentFolderItems.filter(i => i.type === 'directory').map((item) => (
+                  <ListItem key={item.name} disablePadding>
+                    <ListItemButton onClick={() => handleEnterFolder(item.name)}>
+                      <ListItemIcon><Folder size={20} color="#D0BCFF" /></ListItemIcon>
+                      <ListItemText primary={item.name} primaryTypographyProps={{ variant: 'body2' }} />
+                      <ChevronRight size={16} opacity={0.5} />
+                    </ListItemButton>
+                  </ListItem>
+                ))
+              )}
+            </List>
+          </DialogContent>
+          <Box sx={{ p: 2, display: 'flex', gap: 1 }}>
+            <Button fullWidth variant="outlined" onClick={() => setFolderPickerOpen(false)}>Cancel</Button>
+            <Button fullWidth variant="contained" onClick={handleSelectFolder}>Select Current</Button>
+          </Box>
         </Dialog>
       </Box>
     </ThemeProvider>

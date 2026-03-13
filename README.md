@@ -1,4 +1,4 @@
-# 🔐 Angerona
+# 🔐 Angerona v1.0.0
 
 **Angerona** is a high-security, offline-first data protection application designed to keep your most sensitive images, files, and messages safe using enterprise-grade encryption. No cloud, no servers, no tracking—just total cryptographic privacy.
 
@@ -24,8 +24,8 @@
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/vsanthoshraj/MED_Encoder.git
-   cd MED_Encoder/med-web
+   git clone https://github.com/vsanthoshraj/Angerona.git
+   cd Angerona/med-web
    ```
 2. Install dependencies:
    ```bash
@@ -51,13 +51,12 @@ npx cap open android
 ```
 med-web/
 ├── src/
-│   ├── core/       # AES-256-GCM & PBKDF2 logic
-│   ├── theme/      # Material 3 Design & Inter typography
-│   ├── styles/     # Global & component-specific CSS
+│   ├── lib/        # AES-256-GCM (angeronaEngine)
+│   ├── theme/      # Material 3 Design
 │   ├── assets/     # Static images and icons
-│   └── App.tsx     # Main application UI & state management
-├── android/        # Native Android project configuration
-└── LICENSE         # MIT Open Source License
+│   └── App.tsx     # Main application UI
+├── android/        # Native Android project
+└── LICENSE         # CC BY-NC 4.0
 ```
 
 ---

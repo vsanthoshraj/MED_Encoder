@@ -1,4 +1,4 @@
-package com.med.encoder;
+package com.angerona.encoder;
 
 import com.getcapacitor.BridgeActivity;
 

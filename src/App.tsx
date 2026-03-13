@@ -264,11 +264,11 @@ function App() {
         path: vaultPath,
         directory: Directory.Documents,
       });
-      const pdfs = result.files
+      const skFiles = result.files
         .map(f => f.name)
-        .filter(name => name.endsWith('.pdf'))
+        .filter(name => name.toLowerCase().endsWith('.sk') || name.toLowerCase().endsWith('.pdf'))
         .sort((a, b) => b.localeCompare(a));
-      setLibraryFiles(pdfs);
+      setLibraryFiles(skFiles);
     } catch (err) {
       console.error('Failed to read library', err);
     }
@@ -376,7 +376,7 @@ function App() {
       const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const namePrefix = customFileName.trim() || 'Archive';
-      const finalName = `${namePrefix}_${Date.now()}.pdf`;
+      const finalName = `${namePrefix}_${Date.now()}.sk`;
 
       if (Capacitor.isNativePlatform()) {
         const base64Data = btoa(pdfBytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
@@ -700,7 +700,7 @@ function App() {
                                     <Shield size={20} color={currentTheme.palette.primary.main} />
                                   </Box>
                                   <Typography variant="caption" sx={{ fontWeight: 700, textAlign: 'center', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {fileName.replace('.pdf', '')}
+                                    {fileName.replace(/\.(sk|pdf)$/i, '')}
                                   </Typography>
                                 </Stack>
                               </Card>
@@ -716,7 +716,7 @@ function App() {
                   </Box>
 
                   <Box sx={{ p: 4, border: '2px dashed rgba(255,255,255,0.2)', borderRadius: '32px', textAlign: 'center', transition: '0.3s', '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(255,255,255,0.02)' } }}>
-                    <input type="file" multiple={mode === 'image' && state !== 'decode_input'} accept={state === 'decode_input' ? ".pdf" : (mode === 'image' ? "image/*" : "*/*")} onChange={handleFileChange} style={{ display: 'none' }} id="file-upload" />
+                    <input type="file" multiple={mode === 'image' && state !== 'decode_input'} accept={state === 'decode_input' ? ".sk,.pdf" : (mode === 'image' ? "image/*" : "*/*")} onChange={handleFileChange} style={{ display: 'none' }} id="file-upload" />
                     <label htmlFor="file-upload">
                       <Stack spacing={2} alignItems="center" sx={{ cursor: 'pointer' }}>
                         <Upload size={48} color={files.length > 0 ? currentTheme.palette.primary.main : "rgba(255,255,255,0.3)"} />
@@ -1085,8 +1085,8 @@ function App() {
                           <FileText color={currentTheme.palette.primary.main} />
                         </ListItemIcon>
                         <ListItemText
-                          primary={fileName.replace('.pdf', '')}
-                          secondary="Secure PDF Archive"
+                          primary={fileName.replace(/\.(sk|pdf)$/i, '')}
+                          secondary="Angerona Secure Vault (.sk)"
                           primaryTypographyProps={{ variant: 'body2', sx: { fontWeight: 700 } }}
                           secondaryTypographyProps={{ variant: 'caption', sx: { opacity: 0.6 } }}
                         />

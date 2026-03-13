@@ -106,7 +106,7 @@ export const angeronaEngine = {
         const content = decoder.decode(pdfBuffer);
 
         if (!content.includes(ANGERONA_MARKER_START) || !content.includes(ANGERONA_MARKER_END)) {
-            throw new Error('This file is not a valid Angerona Secure PDF.');
+            throw new Error('This file is not a valid Angerona Secure Vault (.sk).');
         }
 
         const base64Payload = content.split(ANGERONA_MARKER_START)[1].split(ANGERONA_MARKER_END)[0];

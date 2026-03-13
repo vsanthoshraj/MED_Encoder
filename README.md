@@ -7,7 +7,7 @@
 ## 🌟 Key Features
 
 - **🛡️ AES-256-GCM Encryption**: Powered by modern authenticated encryption that detects tampering and ensures data integrity.
-- **📄 Universal File Support**: Securely vault any file type (Images, Docs, ZIP) into custom **.sk** containers.
+- **📄 Universal File Support**: Securely vault any file type (PDF, Images, Docs, ZIP) with original filename preservation.
 - **💬 Secure Chat Encoding**: Encrypt text messages into secret containers for private communication.
 - **📴 100% Offline-First**: Zero internet permissions. Your data and passwords never leave your device.
 - **🗝️ PBKDF2 Key Derivation**: High-iteration (100k+) password hashing to protect against brute-force attacks.

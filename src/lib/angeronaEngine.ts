@@ -99,14 +99,14 @@ export const angeronaEngine = {
     },
 
     /**
-     * Decodes files from an AES-256-GCM encrypted PDF container
+     * Decodes files from an AES-256-GCM encrypted (.srk) container
      */
     async decode(pdfBuffer: ArrayBuffer, secret: string): Promise<DecodedFile[]> {
         const decoder = new TextDecoder();
         const content = decoder.decode(pdfBuffer);
 
         if (!content.includes(ANGERONA_MARKER_START) || !content.includes(ANGERONA_MARKER_END)) {
-            throw new Error('This file is not a valid Angerona Secure Vault (.sk).');
+            throw new Error('This file is not a valid Angerona Secure (.srk) container.');
         }
 
         const base64Payload = content.split(ANGERONA_MARKER_START)[1].split(ANGERONA_MARKER_END)[0];

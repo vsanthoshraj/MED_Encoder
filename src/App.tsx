@@ -264,11 +264,11 @@ function App() {
         path: vaultPath,
         directory: Directory.Documents,
       });
-      const skFiles = result.files
+      const pdfs = result.files
         .map(f => f.name)
-        .filter(name => name.toLowerCase().endsWith('.sk') || name.toLowerCase().endsWith('.pdf'))
+        .filter(name => name.endsWith('.srk'))
         .sort((a, b) => b.localeCompare(a));
-      setLibraryFiles(skFiles);
+      setLibraryFiles(pdfs);
     } catch (err) {
       console.error('Failed to read library', err);
     }
@@ -287,8 +287,8 @@ function App() {
         directory: Directory.Documents
       });
       const dataStr = typeof res.data === 'string' ? res.data : '';
-      const blob = await fetch(`data:application/pdf;base64,${dataStr}`).then(r => r.blob());
-      const selectedFile = new File([blob], fileName, { type: 'application/pdf' });
+      const blob = await fetch(`data:application/octet-stream;base64,${dataStr}`).then(r => r.blob());
+      const selectedFile = new File([blob], fileName, { type: 'application/octet-stream' });
       setFiles([selectedFile]);
       setShowLibrary(false);
       setMode('image');
@@ -373,10 +373,10 @@ function App() {
     setLoading(true);
     try {
       const pdfBytes = await angeronaEngine.encode(files, secret);
-      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const namePrefix = customFileName.trim() || 'Archive';
-      const finalName = `${namePrefix}_${Date.now()}.sk`;
+      const finalName = `${namePrefix}_${Date.now()}.srk`;
 
       if (Capacitor.isNativePlatform()) {
         const base64Data = btoa(pdfBytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
@@ -700,7 +700,7 @@ function App() {
                                     <Shield size={20} color={currentTheme.palette.primary.main} />
                                   </Box>
                                   <Typography variant="caption" sx={{ fontWeight: 700, textAlign: 'center', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {fileName.replace(/\.(sk|pdf)$/i, '')}
+                                    {fileName.replace('.srk', '')}
                                   </Typography>
                                 </Stack>
                               </Card>
@@ -716,14 +716,14 @@ function App() {
                   </Box>
 
                   <Box sx={{ p: 4, border: '2px dashed rgba(255,255,255,0.2)', borderRadius: '32px', textAlign: 'center', transition: '0.3s', '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(255,255,255,0.02)' } }}>
-                    <input type="file" multiple={mode === 'image' && state !== 'decode_input'} accept={state === 'decode_input' ? ".sk,.pdf" : (mode === 'image' ? "image/*" : "*/*")} onChange={handleFileChange} style={{ display: 'none' }} id="file-upload" />
+                    <input type="file" multiple={mode === 'image' && state !== 'decode_input'} accept={state === 'decode_input' ? ".srk" : (mode === 'image' ? "image/*" : "*/*")} onChange={handleFileChange} style={{ display: 'none' }} id="file-upload" />
                     <label htmlFor="file-upload">
                       <Stack spacing={2} alignItems="center" sx={{ cursor: 'pointer' }}>
                         <Upload size={48} color={files.length > 0 ? currentTheme.palette.primary.main : "rgba(255,255,255,0.3)"} />
                         <Typography variant="body1" sx={{ fontWeight: 600 }} color={files.length > 0 ? "text.primary" : "text.secondary"}>
                           {files.length > 0
                             ? (state === 'decode_input' || mode === 'file' ? files[0].name : `${files.length}/12 Items Selected`)
-                            : (state === 'encode_input' ? `Upload ${mode === 'image' ? 'Images' : 'your file'} here` : 'Upload encrypted PDF to decrypt')}
+                            : (state === 'encode_input' ? `Upload ${mode === 'image' ? 'Images' : 'your file'} here` : 'Upload encrypted .srk to decrypt')}
                         </Typography>
                         <Button component="span" variant="outlined" sx={{ borderRadius: '50px', px: 4 }} disabled={state === 'encode_input' && mode === 'image' && files.length >= 12}>{files.length > 0 ? (mode === 'file' ? 'Replace File' : 'Add Samples') : 'Select Source'}</Button>
                         {state === 'encode_input' && mode === 'image' && <Button variant="contained" startIcon={<CameraIcon size={20} />} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCamera(); }} disabled={files.length >= 12} sx={{ borderRadius: '50px' }}>Camera</Button>}
@@ -1085,8 +1085,8 @@ function App() {
                           <FileText color={currentTheme.palette.primary.main} />
                         </ListItemIcon>
                         <ListItemText
-                          primary={fileName.replace(/\.(sk|pdf)$/i, '')}
-                          secondary="Angerona Secure Vault (.sk)"
+                          primary={fileName.replace('.srk', '')}
+                          secondary="Angerona Secure Archive (.srk)"
                           primaryTypographyProps={{ variant: 'body2', sx: { fontWeight: 700 } }}
                           secondaryTypographyProps={{ variant: 'caption', sx: { opacity: 0.6 } }}
                         />

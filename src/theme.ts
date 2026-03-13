@@ -1,30 +1,52 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, type ThemeOptions } from '@mui/material/styles';
 
-export const theme = createTheme({
+const getDesignTokens = (mode: 'light' | 'dark'): ThemeOptions => ({
     palette: {
-        mode: 'dark',
-        primary: {
-            main: '#D0BCFF', // Material 3 M3 deep violet primary
-        },
-        secondary: {
-            main: '#CCC2DC',
-        },
-        background: {
-            default: '#1C1B1F',
-            paper: '#2B2930',
-        },
-        text: {
-            primary: '#E6E1E5',
-            secondary: '#CAC4D0',
-        },
+        mode,
+        ...(mode === 'light'
+            ? {
+                // Light mode
+                primary: {
+                    main: '#6750A4',
+                },
+                secondary: {
+                    main: '#625B71',
+                },
+                background: {
+                    default: '#FFFBFE',
+                    paper: '#FFFFFF',
+                },
+                text: {
+                    primary: '#1C1B1F',
+                    secondary: '#49454F',
+                },
+            }
+            : {
+                // Dark mode
+                primary: {
+                    main: '#D0BCFF',
+                },
+                secondary: {
+                    main: '#CCC2DC',
+                },
+                background: {
+                    default: '#1C1B1F',
+                    paper: '#2B2930',
+                },
+                text: {
+                    primary: '#E6E1E5',
+                    secondary: '#CAC4D0',
+                },
+            }),
     },
     typography: {
-        fontFamily: 'Inter, system-ui, Avenir, Helvetica, Arial, sans-serif',
-        h1: { fontWeight: 600, fontSize: '2.5rem' },
-        h5: { fontWeight: 500 },
+        fontFamily: 'Outfit, Inter, system-ui, Avenir, Helvetica, Arial, sans-serif',
+        h4: { fontWeight: 800, letterSpacing: -1 },
+        h5: { fontWeight: 700 },
+        h6: { fontWeight: 700 },
     },
     shape: {
-        borderRadius: 16,
+        borderRadius: 24,
     },
     components: {
         MuiButton: {
@@ -40,10 +62,24 @@ export const theme = createTheme({
         MuiCard: {
             styleOverrides: {
                 root: {
-                    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05))',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundImage: mode === 'dark'
+                        ? 'linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05))'
+                        : 'none',
+                    border: mode === 'dark'
+                        ? '1px solid rgba(255, 255, 255, 0.1)'
+                        : '1px solid rgba(0, 0, 0, 0.05)',
+                    boxShadow: mode === 'light' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+                },
+            },
+        },
+        MuiPaper: {
+            styleOverrides: {
+                root: {
+                    backgroundImage: 'none',
                 },
             },
         },
     },
 });
+
+export const getAppTheme = (mode: 'light' | 'dark') => createTheme(getDesignTokens(mode));

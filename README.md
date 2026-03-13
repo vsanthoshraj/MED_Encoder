@@ -1,6 +1,6 @@
-# 🔐 MED Secure Vault
+# 🔐 Angerona
 
-**MED Secure Vault** is a high-security, offline-first data protection application designed to keep your most sensitive images, files, and messages safe using military-grade encryption. No cloud, no servers, no tracking—just pure cryptographic privacy.
+**Angerona** is a high-security, offline-first data protection application designed to keep your most sensitive images, files, and messages safe using enterprise-grade encryption. No cloud, no servers, no tracking—just total cryptographic privacy.
 
 ---
 
@@ -63,7 +63,7 @@ med-web/
 ---
 
 ## 🛡️ Security Disclaimer
-**Your password is the only key.** Since MED Secure Vault is a true offline application, there are no "Forgot Password" or "Cloud Recovery" options. Losing your secret code means your data is lost forever.
+**Your password is the only key.** Since Angerona is a true offline application, there are no "Forgot Password" or "Cloud Recovery" options. Losing your secret code means your data is lost forever.
 
 ---
 

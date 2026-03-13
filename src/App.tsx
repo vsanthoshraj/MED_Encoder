@@ -140,6 +140,12 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (state === 'decode_input') {
+      loadLibrary();
+    }
+  }, [state]);
+
   const handleUnlock = (digit: string) => {
     const newPin = enteredPin + digit;
     if (newPin.length <= 4) {
@@ -656,7 +662,59 @@ function App() {
               <motion.div key="input" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                 <Stack spacing={4}>
                   <Button startIcon={<ArrowLeft size={18} />} onClick={reset} sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}>Back</Button>
-                  <Typography variant="h5">{state === 'encode_input' ? (mode === 'image' ? 'Lock Photos' : 'Lock Documents') : (mode === 'image' ? 'Unlock Photos' : 'Unlock Documents')}</Typography>
+
+                  <Box>
+                    <Typography variant="h5" sx={{ fontWeight: 800, mb: state === 'decode_input' ? 3 : 0 }}>
+                      {state === 'encode_input' ? (mode === 'image' ? 'Lock Photos' : 'Lock Documents') : (mode === 'image' ? 'Unlock Photos' : 'Unlock Documents')}
+                    </Typography>
+
+                    {state === 'decode_input' && (
+                      <Box sx={{ mb: 2 }}>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                          <Typography variant="overline" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: 1.2 }}>Angerona Gallery</Typography>
+                          {libraryFiles.length > 5 && (
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', cursor: 'pointer', '&:hover': { color: 'primary.main' } }} onClick={handleOpenLibrary}>View All</Typography>
+                          )}
+                        </Stack>
+
+                        {libraryFiles.length > 0 ? (
+                          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 1, mx: -2, px: 2, '&::-webkit-scrollbar': { display: 'none' }, scrollSnapType: 'x mandatory' }}>
+                            {libraryFiles.slice(0, 10).map((fileName) => (
+                              <Card
+                                key={fileName}
+                                onClick={() => selectFromLibrary(fileName)}
+                                sx={{
+                                  minWidth: 140,
+                                  p: 2,
+                                  borderRadius: '24px',
+                                  cursor: 'pointer',
+                                  scrollSnapAlign: 'start',
+                                  bgcolor: files[0]?.name === fileName ? 'rgba(208, 188, 255, 0.12)' : 'rgba(255,255,255,0.03)',
+                                  border: files[0]?.name === fileName ? `2px solid ${currentTheme.palette.primary.main}` : '1px solid rgba(255,255,255,0.05)',
+                                  transition: '0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': { transform: 'translateY(-4px)', bgcolor: 'rgba(255,255,255,0.06)' }
+                                }}
+                              >
+                                <Stack spacing={1.5} alignItems="center">
+                                  <Box sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    <Shield size={20} color={currentTheme.palette.primary.main} />
+                                  </Box>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, textAlign: 'center', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {fileName.replace('.pdf', '')}
+                                  </Typography>
+                                </Stack>
+                              </Card>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Paper sx={{ p: 3, borderRadius: '24px', textAlign: 'center', bgcolor: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>No encrypted archives found in your vault.</Typography>
+                          </Paper>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+
                   <Box sx={{ p: 4, border: '2px dashed rgba(255,255,255,0.2)', borderRadius: '32px', textAlign: 'center', transition: '0.3s', '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(255,255,255,0.02)' } }}>
                     <input type="file" multiple={mode === 'image' && state !== 'decode_input'} accept={state === 'decode_input' ? ".pdf" : (mode === 'image' ? "image/*" : "*/*")} onChange={handleFileChange} style={{ display: 'none' }} id="file-upload" />
                     <label htmlFor="file-upload">
@@ -679,7 +737,7 @@ function App() {
                             ))}
                           </Stack>
                         )}
-                        {state === 'decode_input' && Capacitor.isNativePlatform() && <Button variant="outlined" color="secondary" startIcon={<Library size={20} />} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenLibrary(); }} sx={{ borderRadius: '50px', mt: 1 }}>Open Files Library</Button>}
+                        {state === 'decode_input' && !Capacitor.isNativePlatform() && <Typography variant="caption" color="text.secondary">Library is only available on native device storage.</Typography>}
                         {state === 'encode_input' && mode === 'image' && <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', fontWeight: 600 }}>You can upload up to 12 images at a time.</Typography>}
                       </Stack>
                     </label>
